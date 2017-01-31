@@ -44,31 +44,19 @@ WiiChuck::WiiChuck(uint8_t data_pin, uint8_t sclk_pin) {
   _timeoutCount = 0;
   type = THIRDPARTYWII;
   maps = NULL;
-  numMaps=0;
 }
 
 void WiiChuck::readData() {
   initBytes();
   _burstRead();
-  if (maps != NULL) {
-    ServoWiiControllerMap * tmp = maps;
-    int i=0;
-    while (tmp != NULL && i++<=numMaps) {
-      // perform the mapping
-      int value = performMap(tmp);
-//			Serial.print(" value ");
-//			Serial.print(value);
-
-      tmp->myservo.write(value);
-      if (tmp->next == NULL) {
-        // The end of the list
-        tmp = NULL; //breal the loop
-      } else {
-        tmp = tmp->next;
-      }
-    }
-    Serial.println();
+  
+  for (auto *map = maps; map; map = map->next) {
+    int value = performMap(map);
+    map->myservo.write(value);
+    // Serial.print(" value ");
+    // Serial.print(value);
   }
+  // Serial.println();
 }
 
 int WiiChuck::getJoyX() {
@@ -244,38 +232,20 @@ void WiiChuck::addButtonMap(int servoPin, int servoMin, int servoMax,
 void WiiChuck::addControlMap(int servoPin, int servoMin, int servoCenter,
     int servoMax, int axisMin, int axisCenter, int axisMax,
     FunctionMapName mapName, ButtonMapName button) {
-  ServoWiiControllerMap* newMap = new ServoWiiControllerMap();
+  
+  maps = new ServoWiiControllerMap{
+    mapName,
+    buttonName,
+    axisMin,  axisMax,  axisCenter,
+    servoMin, servoMax, servoCenter,
+    Servo(),
+    maps
+  };
 
-  newMap->axisMin = axisMin;
-  newMap->axisMax = axisMax;
-  newMap->axisCenter = axisCenter;
-  newMap->servoMin = servoMin;
-  newMap->servoMax = servoMax;
-  newMap->servoCenter = servoCenter;
-  newMap->myservo.attach(servoPin);
-  newMap->myservo.write(servoCenter);
-  newMap->name = mapName;
-  newMap->button = button;
-  newMap->next = NULL;
-//	Serial.print("Adding servo  = ");
-//	Serial.print(servoPin);
-//	Serial.println();
-  if (maps == NULL) {
-    maps = newMap;
-  } else {
-    ServoWiiControllerMap * tmp = maps;
-    while (tmp != NULL) {
-      if (tmp->next == NULL) {
-        tmp->next = newMap;
-
-        tmp = NULL; //break the loop
-      } else {
-        tmp = tmp->next;
-      }
-    }
-  }
-  numMaps++;
-
+  // Serial.print("Adding servo  = ");
+  // Serial.println(servoPin);
+  maps->myservo.attach(servoPin);
+  maps->myservo.write(servoCenter);
 }
 
 int WiiChuck::performMap(ServoWiiControllerMap * tmp) {
